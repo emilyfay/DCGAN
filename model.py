@@ -74,16 +74,16 @@ class DCGAN(object):
         self.sample_images= tf.placeholder(
             tf.float32, [None] + self.image_shape, name='sample_images')
         #updated
-        self.mask_images= tf.placeholder(
+        self.z= tf.placeholder(
             tf.float32, [None] + self.image_shape, name='mask_images')
 
 
 
         #updated
-        self.G = self.generator(self.mask_images)
+        self.G = self.generator(self.z)
         self.D, self.D_logits = self.discriminator(self.images)
 
-        self.sampler = self.sampler(self.mask_images)
+        self.sampler = self.sampler(self.z)
         self.D_, self.D_logits_ = self.discriminator(self.G, reuse=True)
 
         self.d_sum = tf.histogram_summary("d", self.D)
@@ -134,7 +134,7 @@ class DCGAN(object):
             [self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
         self.writer = tf.train.SummaryWriter("./logs", self.sess.graph)
 
-        sample_z = np.random.uniform(-1, 1, size=(self.sample_size , self.z_dim))
+        ##sample_z = np.random.uniform(-1, 1, size=(self.sample_size , self.z_dim))
         sample_files = data[0:self.sample_size]
         sample = [get_image(sample_file, self.image_size, is_crop=self.is_crop) for sample_file in sample_files]
         sample_images = np.array(sample).astype(np.float32)
@@ -161,10 +161,27 @@ class DCGAN(object):
                     batch_files.append(data[Bidx])
                 batch = [get_image(batch_file, self.image_size, is_crop=self.is_crop)
                          for batch_file in batch_files]
+
                 batch_images = np.array(batch).astype(np.float32)
 
-                batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]) \
-                            .astype(np.float32)
+                l = np.random.randint(int(self.image_size/5),int(self.image_size/2))
+                l_end = self.image_size
+                mask = np.ones(self.image_shape)
+                #randomly choose which edge to complete
+                rand_mask = np.random.randint(1,5)
+                if rand_mask == 1:
+                    mask[:, 0:l, :] = 0.0
+                elif rand_mask == 2:
+                    mask[0:l, :, :] = 0.0
+                elif rand_mask == 3:
+                    mask[:, l_end-l:l_end, :] = 0.0
+                elif rand_mask == 4:
+                    mask[l_end-l:l_end, :, :] = 0.0
+
+                batch_mask = np.resize(mask, [self.batch_size] + self.image_shape)
+                masked_images = np.multiply(batch_images, batch_mask)
+                batch_z = masked_images
+
                 if idx>1 and (errD_fake+errD_real)<0.6:
                     # Update D network only sometimes
                     if np.random.randint(0,100)>90:
