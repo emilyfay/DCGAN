@@ -223,7 +223,7 @@ class DCGAN(object):
                                 './samples/train_{:02d}_{:04d}.png'.format(epoch, idx))
                     print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
 
-                if np.mod(counter, 10) == 2:
+                if np.mod(counter, 10) == 1:
                     self.save(config.checkpoint_dir, counter)
 
 
@@ -242,12 +242,11 @@ class DCGAN(object):
 
     def generator(self, z_image):
 
-        h0 = lrelu(conv2d(z_image, self.gf_dim, name='g_h0'))
-        h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, name='g_h1')))
-        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, name='g_h2')))
-        h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, name='g_h3')))
-        h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, name='g_h4')))
-
+        h0 = lrelu(conv2d(z_image, self.gf_dim, d_h=1, d_w=1,name='g_h0'))
+        h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
+        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
         h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
 
         return tf.nn.tanh(h5)
@@ -256,12 +255,11 @@ class DCGAN(object):
     def sampler(self, z_image):
         tf.get_variable_scope().reuse_variables()
 
-        h0 = lrelu(conv2d(z_image, self.gf_dim, name='g_h0'))
-        h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, name='g_h1')))
-        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, name='g_h2')))
-        h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, name='g_h3')))
-        h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, name='g_h4')))
-
+        h0 = lrelu(conv2d(z_image, self.gf_dim, d_h=1, d_w=1,name='g_h0'))
+        h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
+        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
         h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
 
         return tf.nn.tanh(h5)
