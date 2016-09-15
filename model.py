@@ -246,9 +246,9 @@ class DCGAN(object):
             tf.get_variable_scope().reuse_variables()
 
         h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
-        h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
-        h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
-        h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+        h1 = lrelu((conv2d(h0, self.df_dim*2, name='d_h1_conv')))
+        h2 = lrelu((conv2d(h1, self.df_dim*4, name='d_h2_conv')))
+        h3 = lrelu((conv2d(h2, self.df_dim*8, name='d_h3_conv')))
         h4 = linear(tf.reshape(h3, [-1, 8192]), 1, 'd_h3_lin')
 
         return tf.nn.sigmoid(h4), h4
@@ -256,11 +256,16 @@ class DCGAN(object):
     def generator(self, z_image):
 
         h0 = lrelu(conv2d(z_image, self.gf_dim, d_h=1, d_w=1,name='g_h0'))
-        h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
-        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
-        h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
-        h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
-        h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
+        # h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
+        # h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        # h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        # h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
+        # h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
+        h1 = lrelu((conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
+        h2 = lrelu((conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        h3 = lrelu((conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        h4 = lrelu((conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
+        h5 = lrelu((conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
 
         return tf.nn.tanh(h5)
 
