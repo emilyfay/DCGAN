@@ -122,9 +122,9 @@ class DCGAN(object):
         data = glob(os.path.join(config.dataset, "*.png"))
         assert(len(data) > 0)
 
-        d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
+        d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
                           .minimize(self.d_loss, var_list=self.d_vars)
-        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
+        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
                           .minimize(self.g_loss, var_list=self.g_vars)
         tf.initialize_all_variables().run()
 

@@ -1,1 +1,7 @@
 data
+checkpoint
+model_train_64.py
+Ex_*
+*.pyc
+.idea
+*.xml
