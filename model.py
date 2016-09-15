@@ -124,7 +124,7 @@ class DCGAN(object):
 
         d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
                           .minimize(self.d_loss, var_list=self.d_vars)
-        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.001) \
+        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
                           .minimize(self.g_loss, var_list=self.g_vars)
         tf.initialize_all_variables().run()
 
@@ -226,6 +226,22 @@ class DCGAN(object):
 
 
     def discriminator(self, image, reuse=False):
+        if reuse:
+            tf.get_variable_scope().reuse_variables()
+
+        h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
+        #h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
+        #h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
+        #h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+        h1 = lrelu(conv2d(h0, self.df_dim*2, name='d_h1_conv'))
+        h2 = lrelu(conv2d(h1, self.df_dim*4, name='d_h2_conv'))
+        h3 = lrelu(conv2d(h2, self.df_dim*8, name='d_h3_conv'))
+        h4 = linear(tf.reshape(h3, [-1, 8192]), 1, 'd_h3_lin')
+
+        return tf.nn.sigmoid(h4), h4
+
+
+    def discriminator_Sauer(self, image, reuse=False):
         if reuse:
             tf.get_variable_scope().reuse_variables()
 
