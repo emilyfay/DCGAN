@@ -124,7 +124,7 @@ class DCGAN(object):
 
         d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
                           .minimize(self.d_loss, var_list=self.d_vars)
-        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
+        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.001) \
                           .minimize(self.g_loss, var_list=self.g_vars)
         tf.initialize_all_variables().run()
 
@@ -164,7 +164,7 @@ class DCGAN(object):
 
                 batch_images = np.array(batch).astype(np.float32)
 
-                l = np.random.randint(int(self.image_size/5),int(self.image_size/2))
+                l = np.random.randint(int(self.image_size/6),int(self.image_size/2))
                 l_end = self.image_size
                 mask = np.ones(self.image_shape)
                 #randomly choose which edge to complete
@@ -195,7 +195,7 @@ class DCGAN(object):
                         feed_dict={ self.images: batch_images, self.z: batch_z })
                     self.writer.add_summary(summary_str, counter)
 
-                # don't turn on G right away, let D learn first
+                # turn off G to let D learn
                 if idx < 2 or errG > (errD_fake+errD_real):
                     # Update G network
                     _, summary_str = self.sess.run([g_optim, self.g_sum],
