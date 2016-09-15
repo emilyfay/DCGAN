@@ -5,3 +5,5 @@ Ex_*
 *.pyc
 .idea
 *.xml
+.ipynb_checkpoints
+LICENSE
