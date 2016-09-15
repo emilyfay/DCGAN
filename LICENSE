@@ -1,8 +1,10 @@
 Most of the code in this repository was written by modifying a duplicate of
+Brian Amos's duplicate of
 Taehoon Kim's DCGAN-tensorflow project:
 https://github.com/carpedm20/DCGAN-tensorflow
 
-The modifications are Copyright (c) 2016 Brandon Amos
+His modifications are Copyright (c) 2016 Brandon Amos
+My modifications are Copyright (c) 2016 Emily Fay
 
 In compliance with the license for DCGAN-tensorflow, we reproduce the license
 statement below, and release the code in this directory under the same license.
