@@ -124,6 +124,9 @@ class DCGAN(object):
 
         d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
                           .minimize(self.d_loss, var_list=self.d_vars)
+
+        g_optim_init = tf.train.AdamOptimizer(10*config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
+                          .minimize(self.g_loss, var_list=self.g_vars)
         g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
                           .minimize(self.g_loss, var_list=self.g_vars)
         tf.initialize_all_variables().run()
@@ -188,19 +191,28 @@ class DCGAN(object):
                         _, summary_str = self.sess.run([d_optim, self.d_sum],
                             feed_dict={ self.images: batch_images, self.z: batch_z })
                         self.writer.add_summary(summary_str, counter)
+                        print('D learn')
 
                 else:
                     # Update D network
                     _, summary_str = self.sess.run([d_optim, self.d_sum],
                         feed_dict={ self.images: batch_images, self.z: batch_z })
                     self.writer.add_summary(summary_str, counter)
+                    print('D learn')
 
                 # turn off G to let D learn
                 if idx < 2 or errG > (errD_fake+errD_real):
                     # Update G network
-                    _, summary_str = self.sess.run([g_optim, self.g_sum],
+                    if epoch < 5:
+                        _, summary_str = self.sess.run([g_optim_init, self.g_sum],
                         feed_dict={ self.z: batch_z })
-                    self.writer.add_summary(summary_str, counter)
+                        self.writer.add_summary(summary_str, counter)
+                        print('G learn fast')
+                    else:
+                        _, summary_str = self.sess.run([g_optim, self.g_sum],
+                                feed_dict={ self.z: batch_z })
+                        self.writer.add_summary(summary_str, counter)
+                        print('G learn slow')
 
                 errD_fake = self.d_loss_fake.eval({self.z: batch_z})
                 errD_real = self.d_loss_real.eval({self.images: batch_images})
@@ -230,12 +242,12 @@ class DCGAN(object):
             tf.get_variable_scope().reuse_variables()
 
         h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
-        #h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
-        #h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
-        #h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
-        h1 = lrelu(conv2d(h0, self.df_dim*2, name='d_h1_conv'))
-        h2 = lrelu(conv2d(h1, self.df_dim*4, name='d_h2_conv'))
-        h3 = lrelu(conv2d(h2, self.df_dim*8, name='d_h3_conv'))
+        h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
+        h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
+        h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+        #h1 = lrelu(conv2d(h0, self.df_dim*2, name='d_h1_conv'))
+        #h2 = lrelu(conv2d(h1, self.df_dim*4, name='d_h2_conv'))
+        #h3 = lrelu(conv2d(h2, self.df_dim*8, name='d_h3_conv'))
         h4 = linear(tf.reshape(h3, [-1, 8192]), 1, 'd_h3_lin')
 
         return tf.nn.sigmoid(h4), h4
@@ -245,10 +257,12 @@ class DCGAN(object):
         if reuse:
             tf.get_variable_scope().reuse_variables()
 
-        h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
-        h1 = lrelu((conv2d(h0, self.df_dim*2, name='d_h1_conv')))
-        h2 = lrelu((conv2d(h1, self.df_dim*4, name='d_h2_conv')))
-        h3 = lrelu((conv2d(h2, self.df_dim*8, name='d_h3_conv')))
+        h0 = lrelu(conv2d(image, self.df_dim, k_h = 3, k_w = 3, d_h = 1, d_w = 1, name='d_h0_conv'))
+        h1 = lrelu((conv2d(h0, self.df_dim, k_h = 3, k_w = 3, d_h = 2, d_w = 2,name='d_h1_conv')))
+        print(h1)
+        h2 = lrelu((conv2d(h1, self.df_dim, name='d_h2_conv')))
+        print(h2)
+        h3 = lrelu((conv2d(h2, self.df_dim, name='d_h3_conv')))
         h4 = linear(tf.reshape(h3, [-1, 8192]), 1, 'd_h3_lin')
 
         return tf.nn.sigmoid(h4), h4
@@ -256,16 +270,16 @@ class DCGAN(object):
     def generator(self, z_image):
 
         h0 = lrelu(conv2d(z_image, self.gf_dim, d_h=1, d_w=1,name='g_h0'))
-        # h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
-        # h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
-        # h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
-        # h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
-        # h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
-        h1 = lrelu((conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
-        h2 = lrelu((conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
-        h3 = lrelu((conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
-        h4 = lrelu((conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
-        h5 = lrelu((conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
+        h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
+        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
+        h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
+        # h1 = lrelu((conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
+        # h2 = lrelu((conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        # h3 = lrelu((conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        # h4 = lrelu((conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
+        # h5 = lrelu((conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
 
         return tf.nn.tanh(h5)
 
@@ -279,6 +293,11 @@ class DCGAN(object):
         h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
         h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
         h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
+        # h1 = lrelu((conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
+        # h2 = lrelu((conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        # h3 = lrelu((conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        # h4 = lrelu((conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
+        # h5 = lrelu((conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
 
         return tf.nn.tanh(h5)
 
