@@ -169,24 +169,30 @@ class DCGAN(object):
 
                 l = np.random.randint(int(self.image_size/6),int(self.image_size/2))
                 l_end = self.image_size
-                mask = np.ones(self.image_shape)
-                noise_mat = np.random.normal(size=self.image_shape)
+                mask = np.zeros(self.image_shape)
+                not_mask = np.ones(self.image_shape)
+                noise_mat = np.random.normal(size=self.image_shape, scale = 0.2)
                 #randomly choose which edge to complete
                 rand_mask = np.random.randint(1,5)
                 if rand_mask == 1:
-                    mask[:, 0:l, :] = np.multiply(mask[:, 0:l, :], noise_mat[:, 0:l, :])
+                    mask[:, 0:l, :] = noise_mat[:, 0:l, :]
+                    not_mask[:, 0:l, :] = 0.0
                 elif rand_mask == 2:
-                    mask[0:l, :, :] = np.multiply(mask[0:l, :, :], noise_mat[0:l, :, :])
+                    mask[0:l, :, :] = noise_mat[0:l, :, :]
+                    not_mask[0:l, :, :] = 0.0
                 elif rand_mask == 3:
-                    mask[:, l_end-l:l_end, :] = np.multiply(mask[:, l_end-l:l_end, :], noise_mat[:, l_end-l:l_end, :])
+                    mask[:, l_end-l:l_end, :] = noise_mat[:, l_end-l:l_end, :]
+                    not_mask[:, l_end-l:l_end, :] = 0.0
                 elif rand_mask == 4:
-                    mask[l_end-l:l_end, :, :] = np.multiply(mask[l_end-l:l_end, :, :], noise_mat[l_end-l:l_end, :, :])
+                    mask[l_end-l:l_end, :, :] = noise_mat[l_end-l:l_end, :, :]
+                    not_mask[l_end-l:l_end, :, :] = 0.0
 
                 batch_mask = np.resize(mask, [self.batch_size] + self.image_shape)
-                masked_images = np.multiply(batch_images, batch_mask)
+                batch_not_mask = np.resize(not_mask, [self.batch_size] + self.image_shape)
+                masked_images = np.add(np.multiply(batch_images, batch_not_mask),batch_mask)
                 batch_z = masked_images
 
-                if idx>1 and (errD_fake+errD_real)<0.6:
+                if idx>1 and (errD_fake+errD_real)<0.5:
                     # Update D network only sometimes
                     if np.random.randint(0,100)>90:
                         _, summary_str = self.sess.run([d_optim, self.d_sum],
@@ -224,13 +230,17 @@ class DCGAN(object):
                     % (epoch, idx, batch_idxs,
                         time.time() - start_time, errD_fake+errD_real, errG))
 
-                if np.mod(counter, 10) == 1:
+                if np.mod(counter, 100) == 1:
                     samples, d_loss, g_loss = self.sess.run(
                         [self.sampler, self.d_loss, self.g_loss],
                         feed_dict={self.z: batch_z, self.images: batch_images}
                     )
                     save_images(samples, [8, 8],
                                 './samples/train_{:02d}_{:04d}.png'.format(epoch, idx))
+                    save_images(batch_z, [8, 8],
+                                './samples/masked_{:02d}_{:04d}.png'.format(epoch, idx))
+                    save_images(batch_images, [8, 8],
+                                './samples/real_{:02d}_{:04d}.png'.format(epoch, idx))
                     print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
 
                 if np.mod(counter, 10) == 1:
