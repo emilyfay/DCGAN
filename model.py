@@ -256,7 +256,6 @@ class DCGAN(object):
     def discriminator(self, image, reuse=False):
         if reuse:
             tf.get_variable_scope().reuse_variables()
-        print(self.df_dim)
         h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
         '''
         h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
@@ -317,7 +316,7 @@ class DCGAN(object):
         h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim*2, name='g_h2')))
         #h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
         h3, self.h3_w, self.h3_b = conv2d_transpose(h2,
-            [self.batch_size, 32, 32, self.gf_dim], name='g_h3', with_w=True)
+            [self.batch_size, 64, 64, self.gf_dim], name='g_h3', with_w=True)
         h3 = tf.nn.relu(self.g_bn3(h3))
         h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
         h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
