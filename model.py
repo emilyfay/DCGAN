@@ -122,12 +122,12 @@ class DCGAN(object):
         data = glob(os.path.join(config.dataset, "*.png"))
         assert(len(data) > 0)
 
-        d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
+        d_optim = tf.train.AdamOptimizer(config.learning_rate*10, beta1=config.beta1, epsilon = 0.1) \
                           .minimize(self.d_loss, var_list=self.d_vars)
 
-        g_optim_init = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.1) \
+        g_optim_init = tf.train.AdamOptimizer(config.learning_rate*5, beta1=config.beta1, epsilon = 0.01) \
                           .minimize(self.g_loss, var_list=self.g_vars)
-        g_optim = tf.train.AdamOptimizer(config.learning_rate/5, beta1=config.beta1, epsilon = 0.1) \
+        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1, epsilon = 0.01) \
                           .minimize(self.g_loss, var_list=self.g_vars)
         tf.initialize_all_variables().run()
 
@@ -169,11 +169,12 @@ class DCGAN(object):
 
                 l = np.random.randint(int(self.image_size/6),int(self.image_size/2))
                 l_end = self.image_size
+                mask_sz = np.random.randint(4,20)
                 mask = np.zeros(self.image_shape)
                 not_mask = np.ones(self.image_shape)
                 noise_mat = np.random.normal(size=self.image_shape, scale = 0.2)
                 #randomly choose which edge to complete
-                rand_mask = np.random.randint(1,5)
+                rand_mask = np.random.randint(1,7)
                 if rand_mask == 1:
                     mask[:, 0:l, :] = noise_mat[:, 0:l, :]
                     not_mask[:, 0:l, :] = 0.0
@@ -186,6 +187,12 @@ class DCGAN(object):
                 elif rand_mask == 4:
                     mask[l_end-l:l_end, :, :] = noise_mat[l_end-l:l_end, :, :]
                     not_mask[l_end-l:l_end, :, :] = 0.0
+                elif rand_mask == 5:
+                    mask[8:8+mask_sz, 8:8+mask_sz, :] = noise_mat[8:8+mask_sz, 8:8+mask_sz, :]
+                    not_mask[8:8+mask_sz, 8:8+mask_sz, :] = 0.0
+                else:
+                    mask[l_end-(mask_sz+8):l_end-8, :, :] = noise_mat[l_end-(mask_sz+8):l_end-8, :, :]
+                    not_mask[l_end-(mask_sz+8):l_end-8, :, :] = 0.0
 
                 batch_mask = np.resize(mask, [self.batch_size] + self.image_shape)
                 batch_not_mask = np.resize(not_mask, [self.batch_size] + self.image_shape)
@@ -194,21 +201,20 @@ class DCGAN(object):
 
                 if idx>1 and (errD_fake+errD_real)<0.5:
                     # Update D network only sometimes
-                    if np.random.randint(0,100)>90:
+                    if np.random.randint(0,100)>95:
                         _, summary_str = self.sess.run([d_optim, self.d_sum],
                             feed_dict={ self.images: batch_images, self.z: batch_z })
                         self.writer.add_summary(summary_str, counter)
-                        print('D learn')
+
 
                 else:
                     # Update D network
                     _, summary_str = self.sess.run([d_optim, self.d_sum],
                         feed_dict={ self.images: batch_images, self.z: batch_z })
                     self.writer.add_summary(summary_str, counter)
-                    #print('D learn')
 
                 # turn off G to let D learn
-                if idx < 2 or errG > (errD_fake+errD_real):
+                if idx < 2 or errG > (errD_fake+errD_real) or np.random.randint(0,100)>90:
                     # Update G network
                     if epoch < 5:
                         _, summary_str = self.sess.run([g_optim_init, self.g_sum],
@@ -236,30 +242,32 @@ class DCGAN(object):
                         feed_dict={self.z: batch_z, self.images: batch_images}
                     )
                     save_images(samples, [8, 8],
-                                './samples/train_{:02d}_{:04d}.png'.format(epoch, idx))
+                                './samples/train_{:02g}_{:02d}_{:04d}.png'.format(config.learning_rate,epoch, idx))
                     save_images(batch_z, [8, 8],
                                 './samples/masked_{:02d}_{:04d}.png'.format(epoch, idx))
                     save_images(batch_images, [8, 8],
                                 './samples/real_{:02d}_{:04d}.png'.format(epoch, idx))
                     print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
 
+
                 if np.mod(counter, 10) == 1:
                     self.save(config.checkpoint_dir, counter)
-
-
 
     def discriminator(self, image, reuse=False):
         if reuse:
             tf.get_variable_scope().reuse_variables()
-
+        print(self.df_dim)
         h0 = lrelu(conv2d(image, self.df_dim, name='d_h0_conv'))
+        '''
         h1 = lrelu(self.d_bn1(conv2d(h0, self.df_dim*2, name='d_h1_conv')))
         h2 = lrelu(self.d_bn2(conv2d(h1, self.df_dim*4, name='d_h2_conv')))
         h3 = lrelu(self.d_bn3(conv2d(h2, self.df_dim*8, name='d_h3_conv')))
-        #h1 = lrelu(conv2d(h0, self.df_dim*2, name='d_h1_conv'))
-        #h2 = lrelu(conv2d(h1, self.df_dim*4, name='d_h2_conv'))
-        #h3 = lrelu(conv2d(h2, self.df_dim*8, name='d_h3_conv'))
+        '''
+        h1 = lrelu(conv2d(h0, self.df_dim*2, name='d_h1_conv'))
+        h2 = lrelu(conv2d(h1, self.df_dim*4, name='d_h2_conv'))
+        h3 = lrelu(conv2d(h2, self.df_dim*8, name='d_h3_conv'))
         h4 = linear(tf.reshape(h3, [-1, 8192]), 1, 'd_h3_lin')
+
 
         return tf.nn.sigmoid(h4), h4
 
@@ -273,7 +281,7 @@ class DCGAN(object):
         h2 = lrelu((conv2d(h1, self.df_dim, k_h = 3, k_w = 3, d_h = 1, d_w = 1, name='d_h2_conv')))
         h3 = lrelu((conv2d(h2, self.df_dim, k_h = 3, k_w = 3, d_h = 2, d_w = 2, name='d_h3_conv')))
         h4 = lrelu((conv2d(h3, self.df_dim, k_h = 1, k_w = 1, d_h = 1, d_w = 1, name='d_h4_conv')))
-        h5 = linear(tf.reshape(h3, [-1, 8192]), 1, 'd_h5_lin')
+        h5 = linear(tf.reshape(h4, [-1, 8192]), 1, 'd_h5_lin')
 
         return tf.nn.sigmoid(h5), h5
 
@@ -281,8 +289,12 @@ class DCGAN(object):
 
         h0 = lrelu(conv2d(z_image, self.gf_dim, d_h=1, d_w=1,name='g_h0'))
         h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
-        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
-        h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        #h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim*2, name='g_h2')))
+        #h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        h3, self.h3_w, self.h3_b = conv2d_transpose(h2,
+            [self.batch_size, 64, 64, self.gf_dim], name='g_h3', with_w=True)
+        h3 = tf.nn.relu(self.g_bn3(h3))
         h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
         h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
         '''
@@ -300,10 +312,13 @@ class DCGAN(object):
         tf.get_variable_scope().reuse_variables()
 
         h0 = lrelu(conv2d(z_image, self.gf_dim, d_h=1, d_w=1,name='g_h0'))
-
         h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
-        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
-        h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        #h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim*2, name='g_h2')))
+        #h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        h3, self.h3_w, self.h3_b = conv2d_transpose(h2,
+            [self.batch_size, 32, 32, self.gf_dim], name='g_h3', with_w=True)
+        h3 = tf.nn.relu(self.g_bn3(h3))
         h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
         h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
         '''
@@ -315,6 +330,23 @@ class DCGAN(object):
         '''
         return tf.nn.tanh(h5)
 
+    def infill(self, masked_image, image_name):
+
+        try:
+            self.load(self.checkpoint_dir)
+            print(" [*] Trained Load SUCCESS from %s" %self.checkpoint_dir)
+        except:
+            print(" [!] Load failed...")
+        masked_image_mat = np.ndarray((1,64,64,3))
+        masked_image_mat[0,:,:,:] = np.asarray(masked_image)
+        filled_image = self.sess.run([self.sampler],{self.z: masked_image_mat})
+        imsave_single(masked_image, './filled/in_%s.png' %image_name)
+        imsave_single(filled_image[0][0,:,:,:], './filled/out_%s.png' %image_name)
+
+
+
+
+        return filled_image
 
     def save(self, checkpoint_dir, step):
         if not os.path.exists(checkpoint_dir):
