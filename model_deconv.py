@@ -167,36 +167,35 @@ class DCGAN(object):
 
                 batch_images = np.array(batch).astype(np.float32)
 
-                l = np.random.randint(int(64/6),int(64/2))
-                l_end = 64
+                l = np.random.randint(int(self.image_size/6),int(self.image_size/2))
+                l_end = self.image_size
                 mask_sz = np.random.randint(4,20)
-                mask = np.zeros([64,64,64,3])
-                not_mask = np.ones([64,64,64,3])
-                noise_mat = np.random.normal(size=[64,64,64,3], scale = 0.2)
+                mask = np.zeros(self.image_shape)
+                not_mask = np.ones(self.image_shape)
+                noise_mat = np.random.normal(size=self.image_shape, scale = 0.2)
+                #randomly choose which edge to complete
+                rand_mask = np.random.randint(1,7)
+                if rand_mask == 1:
+                    mask[:, 0:l, :] = noise_mat[:, 0:l, :]
+                    not_mask[:, 0:l, :] = 0.0
+                elif rand_mask == 2:
+                    mask[0:l, :, :] = noise_mat[0:l, :, :]
+                    not_mask[0:l, :, :] = 0.0
+                elif rand_mask == 3:
+                    mask[:, l_end-l:l_end, :] = noise_mat[:, l_end-l:l_end, :]
+                    not_mask[:, l_end-l:l_end, :] = 0.0
+                elif rand_mask == 4:
+                    mask[l_end-l:l_end, :, :] = noise_mat[l_end-l:l_end, :, :]
+                    not_mask[l_end-l:l_end, :, :] = 0.0
+                elif rand_mask == 5:
+                    mask[8:8+mask_sz, 8:8+mask_sz, :] = noise_mat[8:8+mask_sz, 8:8+mask_sz, :]
+                    not_mask[8:8+mask_sz, 8:8+mask_sz, :] = 0.0
+                else:
+                    mask[l_end-(mask_sz+8):l_end-8, :, :] = noise_mat[l_end-(mask_sz+8):l_end-8, :, :]
+                    not_mask[l_end-(mask_sz+8):l_end-8, :, :] = 0.0
 
-                mask[:10,:, 0:l, :] = noise_mat[:10,:, 0:l, :]
-                not_mask[:10,:, 0:l, :] = 0.0
-
-                mask[10:20,:, 0:l, :] = noise_mat[10:20,:, 0:l, :]
-                not_mask[10:20,:, 0:l, :] = 0.0
-
-                mask[20:30,0:l, :, :] = noise_mat[20:30,0:l, :, :]
-                not_mask[20:30,0:l, :, :] = 0.0
-
-                mask[30:40,:, l_end-l:l_end, :] = noise_mat[30:40,:, l_end-l:l_end, :]
-                not_mask[30:40,:, l_end-l:l_end, :] = 0.0
-
-                mask[40:50,l_end-l:l_end, :, :] = noise_mat[40:50,l_end-l:l_end, :, :]
-                not_mask[40:50,l_end-l:l_end, :, :] = 0.0
-
-                mask[50:57,8:8+mask_sz, 8:8+mask_sz, :] = noise_mat[50:57,8:8+mask_sz, 8:8+mask_sz, :]
-                not_mask[50:57,8:8+mask_sz, 8:8+mask_sz, :] = 0.0
-
-                mask[57:,l_end-(mask_sz+8):l_end-8, l_end-(mask_sz+8):l_end-8, :] = noise_mat[57:,l_end-(mask_sz+8):l_end-8, l_end-(mask_sz+8):l_end-8, :]
-                not_mask[57:,l_end-(mask_sz+8):l_end-8, l_end-(mask_sz+8):l_end-8, :] = 0.0
-
-                batch_mask = mask
-                batch_not_mask = not_mask
+                batch_mask = np.resize(mask, [self.batch_size] + self.image_shape)
+                batch_not_mask = np.resize(not_mask, [self.batch_size] + self.image_shape)
                 masked_images = np.add(np.multiply(batch_images, batch_not_mask),batch_mask)
                 batch_z = masked_images
 
@@ -251,7 +250,7 @@ class DCGAN(object):
                     print("[Sample] d_loss: %.8f, g_loss: %.8f" % (d_loss, g_loss))
 
 
-                if np.mod(counter, 50) == 1:
+                if np.mod(counter, 10) == 1:
                     self.save(config.checkpoint_dir, counter)
 
     def discriminator(self, image, reuse=False):
@@ -289,12 +288,12 @@ class DCGAN(object):
 
         h0 = lrelu(conv2d(z_image, self.gf_dim, d_h=1, d_w=1,name='g_h0'))
         h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
-        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
-        #h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim*2, name='g_h2')))
-        h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
-        #h3, self.h3_w, self.h3_b = conv2d_transpose(h2,
-          #  [self.batch_size, 64, 64, self.gf_dim], name='g_h3', with_w=True)
-        #h3 = tf.nn.relu(self.g_bn3(h3))
+        #h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim*2, name='g_h2')))
+        #h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        h3, self.h3_w, self.h3_b = conv2d_transpose(h2,
+            [self.batch_size, 64, 64, self.gf_dim], name='g_h3', with_w=True)
+        h3 = tf.nn.relu(self.g_bn3(h3))
         h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
         h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
         '''
@@ -313,12 +312,12 @@ class DCGAN(object):
 
         h0 = lrelu(conv2d(z_image, self.gf_dim, d_h=1, d_w=1,name='g_h0'))
         h1 = lrelu(self.g_bn1(conv2d(h0, self.gf_dim, d_h=1, d_w=1,name='g_h1')))
-        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
-        #h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim*2, name='g_h2')))
-        h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
-        #h3, self.h3_w, self.h3_b = conv2d_transpose(h2,
-         #   [self.batch_size, 64, 64, self.gf_dim], name='g_h3', with_w=True)
-        #h3 = tf.nn.relu(self.g_bn3(h3))
+        #h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim, d_h=1, d_w=1,name='g_h2')))
+        h2 = lrelu(self.g_bn2(conv2d(h1, self.gf_dim*2, name='g_h2')))
+        #h3 = lrelu(self.g_bn3(conv2d(h2, self.gf_dim, d_h=1, d_w=1,name='g_h3')))
+        h3, self.h3_w, self.h3_b = conv2d_transpose(h2,
+            [self.batch_size, 64, 64, self.gf_dim], name='g_h3', with_w=True)
+        h3 = tf.nn.relu(self.g_bn3(h3))
         h4 = lrelu(self.g_bn4(conv2d(h3, self.gf_dim, d_h=1, d_w=1, name='g_h4')))
         h5 = lrelu(self.g_bn5(conv2d(h4, 3, k_h=3, k_w=3, d_h=1, d_w=1, name='g_h5')))
         '''
